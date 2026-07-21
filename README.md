@@ -128,15 +128,21 @@ passphrase means logs cannot be decrypted.
 ## Contacts
 
 ```bash
-misaka-mail contacts --json
-misaka-mail contacts --include-inbox --limit 500
+misaka-mail contacts                  # default: read local encrypted cache
+misaka-mail contacts --refresh        # re-pull and replace the cache
+misaka-mail contacts --merge          # re-pull and merge with the cache
+misaka-mail contacts --include-inbox --limit 500 --json
 ```
 
 Pulls a contact list by trying a Contacts folder (vCard) first, then scanning
 the Sent folder for recipients (a portable fallback, since IMAP has no standard
-address-book API). `--include-inbox` also collects senders from INBOX. Output
-includes a `notes` array describing which folders were found; each contact has
-`name`, `email`, and `source` (`vcard`|`sent`|`inbox`).
+address-book API). `--include-inbox` also collects senders from INBOX. Results
+are cached locally per account, encrypted with the app encryption key (set via
+`misaka-mail log key`); by default the cache is returned, `--refresh` replaces
+it, `--merge` combines. Without a key, contacts are pulled but not cached.
+Output includes a `notes` array and each contact has `name`, `email`, `source`
+(`vcard`|`sent`|`inbox`); JSON also includes `source` of the result
+(`cache`|`refresh`|`merge`|`server`) and `pulled_at`.
 
 ## JSON output
 
@@ -202,8 +208,9 @@ internal/
   updater/              GitHub-Releases self-update (go-selfupdate)
   syspath/              add the binary dir to the user PATH (Windows registry / Unix rc)
   logging/              encrypted JSON logs (AES-256-GCM + scrypt)
+  crypto/               shared encryption (key + AES-256-GCM + scrypt) for logs & contacts
   vcard/                minimal vCard parser
-  contacts/             contact pulling (Contacts folder + sent mail)
+  contacts/             contact pulling + encrypted local cache (refresh/merge)
 .claude/skills/misaka-mail/SKILL.md   assistant skill
 ```
 

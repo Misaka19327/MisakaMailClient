@@ -10,6 +10,7 @@ import (
 
 	"MisakaMailClient/internal/config"
 	"MisakaMailClient/internal/credentials"
+	"MisakaMailClient/internal/crypto"
 	"MisakaMailClient/internal/logging"
 	"MisakaMailClient/internal/output"
 
@@ -53,7 +54,9 @@ func Execute(version string) {
 		return nil
 	}
 	if cfg, err := config.Load(); err == nil {
-		logging.Init(cfg.LoggingConfig())
+		lc := cfg.LoggingConfig()
+		crypto.Init(lc.Salt)
+		logging.Init(lc)
 	}
 	if err := rootCmd.Execute(); err != nil {
 		logging.Write(logging.LevelError, lastCommand, "", err.Error())

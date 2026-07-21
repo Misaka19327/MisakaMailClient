@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"MisakaMailClient/internal/config"
+	"MisakaMailClient/internal/contacts"
+	"MisakaMailClient/internal/crypto"
 	"MisakaMailClient/internal/logging"
 	"MisakaMailClient/internal/output"
 
@@ -35,8 +37,8 @@ var logKeyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		logging.Init(cfg.LoggingConfig())
-		salt, replaced, err := logging.SetKey(pass)
+		crypto.Init(cfg.LoggingConfig().Salt)
+		salt, replaced, err := crypto.SetKey(pass)
 		if err != nil {
 			return err
 		}
@@ -48,7 +50,8 @@ var logKeyCmd = &cobra.Command{
 			return fmt.Errorf("save config: %w", err)
 		}
 		if replaced {
-			_ = logging.PurgeAll() // old logs are undecryptable with the new key
+			_ = logging.PurgeAll()  // old logs are undecryptable with the new key
+			_ = contacts.PurgeAll() // old contact caches are undecryptable too
 		}
 		if jsonMode {
 			return output.PrintJSON(map[string]interface{}{

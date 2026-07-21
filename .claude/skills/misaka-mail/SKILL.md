@@ -164,7 +164,9 @@ command, account, message}`.
 ## Contacts
 
 ```bash
-misaka-mail contacts --json
+misaka-mail contacts                  # default: read local encrypted cache (fast)
+misaka-mail contacts --refresh        # re-pull from server, replace cache
+misaka-mail contacts --merge          # re-pull and merge with cache
 misaka-mail contacts --include-inbox --limit 500
 ```
 
@@ -173,6 +175,12 @@ recipients (portable fallback — IMAP has no standard address-book API).
 `--include-inbox` also collects INBOX senders. Output includes a `notes` array
 describing which folders were found. Each contact has `name`, `email`, `source`
 (`vcard`|`sent`|`inbox`).
+
+Results are cached locally per account, encrypted with the app encryption key
+(set via `misaka-mail log key`); by default the cache is returned, `--refresh`
+replaces it, `--merge` combines. Without a key, contacts are pulled but not
+cached. JSON includes `source` (`cache`|`refresh`|`merge`|`server`), `count`,
+`pulled_at`, `contacts`, and `notes`.
 
 ## Typical workflow
 

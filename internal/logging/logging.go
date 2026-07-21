@@ -1,18 +1,13 @@
 // Package logging writes encrypted, JSON-formatted log entries to disk.
 //
-// Each entry is serialized to JSON, encrypted with AES-256-GCM (key derived
-// from a user passphrase via scrypt), and appended as one base64 line to a
-// per-day file under <configdir>/misaka-mail/logs/YYYY-MM-DD.enc. The
-// passphrase is stored in the OS keyring; the KDF salt is stored in config
-// (non-secret). Without a passphrase set, logging is a silent no-op so the CLI
-// keeps working.
+// Each entry is serialized to JSON, encrypted with AES-256-GCM via the shared
+// internal/crypto package (key derived from a user passphrase stored in the OS
+// keyring), and appended as one base64 line to a per-day file under
+// <configdir>/misaka-mail/logs/YYYY-MM-DD.enc. Without a passphrase set,
+// logging is a silent no-op so the CLI keeps working.
 package logging
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,9 +17,7 @@ import (
 	"time"
 
 	"MisakaMailClient/internal/config"
-	"MisakaMailClient/internal/credentials"
-
-	"golang.org/x/crypto/scrypt"
+	"MisakaMailClient/internal/crypto"
 )
 
 // Level is a log severity.
@@ -68,8 +61,6 @@ func (l Level) String() string {
 	}
 }
 
-const logKeyID = "log-key"
-
 // Entry is one log record.
 type Entry struct {
 	Time    time.Time `json:"time"`
@@ -80,14 +71,14 @@ type Entry struct {
 }
 
 var (
-	cfg       config.Logging
 	level     = LevelError
 	retention = 7
 )
 
-// Init applies the logging configuration and purges expired log files.
+// Init applies the logging configuration and purges expired log files. The
+// encryption salt is injected separately via crypto.Init (by the CLI entry
+// point).
 func Init(c config.Logging) {
-	cfg = c
 	if l, err := ParseLevel(c.Level); err == nil && c.Level != "" {
 		level = l
 	} else {
@@ -100,9 +91,6 @@ func Init(c config.Logging) {
 	}
 	purgeOldLogs(retention)
 }
-
-// Salt returns the configured KDF salt (empty if none).
-func Salt() string { return cfg.Salt }
 
 func logsDir() (string, error) {
 	d, err := config.Dir()
@@ -117,70 +105,13 @@ func logFileForToday() string {
 	return filepath.Join(d, time.Now().Format("2006-01-02")+".enc")
 }
 
-func deriveKey(pass string, salt []byte) ([]byte, error) {
-	return scrypt.Key([]byte(pass), salt, 1<<15, 8, 1, 32)
-}
-
-func getPassphrase() string {
-	p, err := credentials.GetPassword(logKeyID)
-	if err != nil {
-		return ""
-	}
-	return p
-}
-
-func encrypt(key, plaintext []byte) (string, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return "", err
-	}
-	ct := gcm.Seal(nil, nonce, plaintext, nil)
-	return base64.StdEncoding.EncodeToString(append(nonce, ct...)), nil
-}
-
-func decrypt(key []byte, b64 string) ([]byte, error) {
-	raw, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		return nil, err
-	}
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	if len(raw) < gcm.NonceSize() {
-		return nil, fmt.Errorf("ciphertext too short")
-	}
-	return gcm.Open(nil, raw[:gcm.NonceSize()], raw[gcm.NonceSize():], nil)
-}
-
 // Write appends a log entry if the level is enabled and a key is set. It is
 // best-effort and never returns an error that callers must handle.
 func Write(lvl Level, command, account, message string) {
 	if lvl < level {
 		return
 	}
-	pass := getPassphrase()
-	if pass == "" {
-		return
-	}
-	salt, err := base64.StdEncoding.DecodeString(cfg.Salt)
-	if err != nil || len(salt) == 0 {
-		return
-	}
-	key, err := deriveKey(pass, salt)
-	if err != nil {
+	if !crypto.HasKey() {
 		return
 	}
 	data, err := json.Marshal(Entry{
@@ -193,7 +124,7 @@ func Write(lvl Level, command, account, message string) {
 	if err != nil {
 		return
 	}
-	line, err := encrypt(key, data)
+	line, err := crypto.Encrypt(data)
 	if err != nil {
 		return
 	}
@@ -214,17 +145,8 @@ func Write(lvl Level, command, account, message string) {
 
 // Read returns decrypted entries at or above minLevel, optionally since a time.
 func Read(minLevel Level, since time.Time) ([]Entry, error) {
-	pass := getPassphrase()
-	if pass == "" {
+	if !crypto.HasKey() {
 		return nil, fmt.Errorf("no log encryption key set; run 'misaka-mail log key'")
-	}
-	salt, err := base64.StdEncoding.DecodeString(cfg.Salt)
-	if err != nil || len(salt) == 0 {
-		return nil, fmt.Errorf("no log salt configured; run 'misaka-mail log key'")
-	}
-	key, err := deriveKey(pass, salt)
-	if err != nil {
-		return nil, err
 	}
 	dir, err := logsDir()
 	if err != nil {
@@ -251,7 +173,7 @@ func Read(minLevel Level, since time.Time) ([]Entry, error) {
 			if line == "" {
 				continue
 			}
-			dec, err := decrypt(key, line)
+			dec, err := crypto.Decrypt(line)
 			if err != nil {
 				continue // wrong key / corrupt: skip
 			}
@@ -270,29 +192,6 @@ func Read(minLevel Level, since time.Time) ([]Entry, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Time.Before(out[j].Time) })
 	return out, nil
-}
-
-// SetKey stores the passphrase. On first set it generates a salt; on later
-// sets the salt is preserved. It returns the salt to persist and whether an
-// existing key was replaced (old logs become undecryptable).
-func SetKey(pass string) (salt string, replaced bool, err error) {
-	if len(pass) < 6 {
-		return "", false, fmt.Errorf("key must be at least 6 characters")
-	}
-	existing, err := credentials.GetPassword(logKeyID)
-	replaced = err == nil && existing != ""
-	salt = cfg.Salt
-	if salt == "" {
-		s := make([]byte, 16)
-		if _, err := rand.Read(s); err != nil {
-			return "", false, err
-		}
-		salt = base64.StdEncoding.EncodeToString(s)
-	}
-	if err := credentials.SetPassword(logKeyID, pass); err != nil {
-		return "", false, err
-	}
-	return salt, replaced, nil
 }
 
 func purgeOldLogs(days int) {
