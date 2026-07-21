@@ -104,6 +104,40 @@ misaka-mail reply 5 --all --html-file ./reply.html --attach ./signed.pdf
 Reply sets `In-Reply-To`, `References`, and a `Re:` subject automatically.
 `--all` replies to all recipients.
 
+## Logging
+
+Encrypted, JSON-formatted logs. Set an encryption key (min 6 chars) first;
+until then logging is off and the CLI works normally.
+
+```bash
+misaka-mail log key               # set/change the encryption key (prompted, min 6)
+misaka-mail log level info        # debug|info|warn|error (default error)
+misaka-mail log retention 14      # days to keep (default 7)
+misaka-mail log show              # decrypt and print (JSON by default)
+misaka-mail log show --level error --since 48h --text
+misaka-mail log purge             # delete all log files
+```
+
+Each entry is AES-256-GCM encrypted (key derived via scrypt from a passphrase
+stored in the OS keyring) and appended as one base64 line to
+`%APPDATA%\misaka-mail\logs\YYYY-MM-DD.enc`. The CLI logs an `info` entry on
+each command start (when the level allows) and an `error` entry on failure.
+`log show` outputs JSON by default (`--text` for human-readable). Losing the
+passphrase means logs cannot be decrypted.
+
+## Contacts
+
+```bash
+misaka-mail contacts --json
+misaka-mail contacts --include-inbox --limit 500
+```
+
+Pulls a contact list by trying a Contacts folder (vCard) first, then scanning
+the Sent folder for recipients (a portable fallback, since IMAP has no standard
+address-book API). `--include-inbox` also collects senders from INBOX. Output
+includes a `notes` array describing which folders were found; each contact has
+`name`, `email`, and `source` (`vcard`|`sent`|`inbox`).
+
 ## JSON output
 
 Every data command supports `--json`. Errors are emitted to stderr as
@@ -167,6 +201,9 @@ internal/
   output/               JSON / text rendering
   updater/              GitHub-Releases self-update (go-selfupdate)
   syspath/              add the binary dir to the user PATH (Windows registry / Unix rc)
+  logging/              encrypted JSON logs (AES-256-GCM + scrypt)
+  vcard/                minimal vCard parser
+  contacts/             contact pulling (Contacts folder + sent mail)
 .claude/skills/misaka-mail/SKILL.md   assistant skill
 ```
 

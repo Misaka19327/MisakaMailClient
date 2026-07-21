@@ -22,10 +22,19 @@ type Account struct {
 	SMTP        provider.Server `json:"smtp"`
 }
 
+// Logging holds the (non-secret) logging configuration. The encryption
+// passphrase lives in the OS keyring, not here.
+type Logging struct {
+	Level         string `json:"level,omitempty"`          // default "error"
+	RetentionDays int    `json:"retention_days,omitempty"` // default 7
+	Salt          string `json:"salt,omitempty"`           // base64 KDF salt
+}
+
 // Config is the persisted application configuration.
 type Config struct {
 	CurrentAccount string    `json:"current_account,omitempty"`
 	Accounts       []Account `json:"accounts"`
+	Logging        *Logging  `json:"logging,omitempty"`
 }
 
 // Dir returns the configuration directory path.
@@ -133,4 +142,19 @@ func (c *Config) Current() (*Account, bool) {
 		return &c.Accounts[0], true
 	}
 	return nil, false
+}
+
+// LoggingConfig returns the logging config with defaults applied.
+func (c *Config) LoggingConfig() Logging {
+	if c.Logging == nil {
+		return Logging{Level: "error", RetentionDays: 7}
+	}
+	l := *c.Logging
+	if l.Level == "" {
+		l.Level = "error"
+	}
+	if l.RetentionDays <= 0 {
+		l.RetentionDays = 7
+	}
+	return l
 }

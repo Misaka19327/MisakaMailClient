@@ -10,6 +10,7 @@ import (
 
 	"MisakaMailClient/internal/config"
 	"MisakaMailClient/internal/credentials"
+	"MisakaMailClient/internal/logging"
 	"MisakaMailClient/internal/output"
 
 	"github.com/spf13/cobra"
@@ -30,13 +31,32 @@ var rootCmd = &cobra.Command{
 		"凭据保存在系统密钥库(Windows 凭据管理器),非明文。",
 }
 
+// lastCommand records the command path being executed, for error logging.
+var lastCommand string
+
 // Execute runs the root command. version is reported via --version.
 func Execute(version string) {
 	appVersion = version
 	rootCmd.Version = version
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		lastCommand = cmd.CommandPath()
+		// Don't log the log commands themselves (avoids self-referential noise).
+		if !strings.HasPrefix(cmd.CommandPath(), "misaka-mail log") {
+			acct := ""
+			if acc, err := resolveAccount(); err == nil && acc != nil {
+				acct = acc.Email
+			}
+			logging.Write(logging.LevelInfo, cmd.CommandPath(), acct, "started")
+		}
+		return nil
+	}
+	if cfg, err := config.Load(); err == nil {
+		logging.Init(cfg.LoggingConfig())
+	}
 	if err := rootCmd.Execute(); err != nil {
+		logging.Write(logging.LevelError, lastCommand, "", err.Error())
 		output.PrintError(jsonMode, err)
 		os.Exit(1)
 	}

@@ -140,6 +140,40 @@ The GitHub repo is baked in at build time via `-ldflags`; if unset, pass
 rate limits or private repos. Update JSON: `{"updated": true, "version": "..."}`
 or check `{"current": "...", "latest": "...", "update_available": bool}`.
 
+## Logging
+
+Encrypted, JSON logs. Set a key (min 6 chars) first; without it, logging is off
+and commands still work normally.
+
+```bash
+misaka-mail log key               # set/change the encryption key (prompted, min 6)
+misaka-mail log level info        # debug|info|warn|error (default error)
+misaka-mail log retention 14      # days to keep (default 7)
+misaka-mail log show              # decrypt + print (JSON by default)
+misaka-mail log show --level error --since 48h --text
+misaka-mail log purge             # delete all log files
+```
+
+Each entry is AES-256-GCM encrypted (key derived via scrypt from the passphrase,
+stored in the OS keyring) and appended as one base64 line to
+`%APPDATA%\misaka-mail\logs\YYYY-MM-DD.enc`. Commands log an `info` entry on
+start (when level allows) and an `error` entry on failure. `log show` outputs
+JSON by default; `--text` for human-readable. Entry JSON: `{time, level,
+command, account, message}`.
+
+## Contacts
+
+```bash
+misaka-mail contacts --json
+misaka-mail contacts --include-inbox --limit 500
+```
+
+Tries a Contacts folder (vCard) first, then scans the Sent folder for
+recipients (portable fallback — IMAP has no standard address-book API).
+`--include-inbox` also collects INBOX senders. Output includes a `notes` array
+describing which folders were found. Each contact has `name`, `email`, `source`
+(`vcard`|`sent`|`inbox`).
+
 ## Typical workflow
 
 1. `misaka-mail login --provider <p> --email <e>` (once per account).
