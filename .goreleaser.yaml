@@ -1,0 +1,49 @@
+version: 2
+
+project_name: misaka-mail
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: misaka-mail
+    main: ./cmd/misaka-mail
+    binary: misaka-mail
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    ids:
+      - misaka-mail
+    # go-selfupdate expects assets named {cmd}_{os}_{arch}{.ext}
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: false
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-dev"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+
+release:
+  draft: false
+  prerelease: auto

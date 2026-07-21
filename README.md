@@ -126,20 +126,20 @@ update from a private repository.
 
 ### Publishing releases
 
-The repository to check is set at build time via `-ldflags` (see Install) or per
-invocation via `--repo`. To produce releases the updater can install, use the
-`go-selfupdate` tool, which packages binaries and generates `checksums.txt`:
+Releases are built and published automatically by the GitHub Action in
+`.github/workflows/release.yml` using [GoReleaser](https://goreleaser.com). Push
+a `v*` tag to trigger it:
 
-```powershell
-go install github.com/creativeprojects/go-selfupdate/cmd/go-selfupdate@latest
-# Build the binary for the current platform, then package + (optionally) upload:
-go-selfupdate -o release/ 0.2.0
-# Or automate on tag push with the creativeprojects/go-selfupdate GitHub Action.
+```bash
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
-Asset naming follows go-selfupdate's convention
-(`misaka-mail_<version>_<os>_<arch>.zip` / `.tar.gz`), which the updater matches
-against the current `GOOS`/`GOARCH` automatically.
+GoReleaser builds binaries for linux/darwin/windows × amd64/arm64, packages
+them as `misaka-mail_<os>_<arch>.tar.gz`, and generates `checksums.txt` (SHA256,
+which `misaka-mail update` verifies). The update repository is baked in as
+`Misaka19327/MisakaMailClient` (see `internal/updater`); override at build time
+with `-ldflags` or per invocation with `--repo`.
 
 ## How credentials are stored
 
