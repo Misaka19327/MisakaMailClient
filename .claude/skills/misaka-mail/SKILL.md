@@ -131,6 +131,21 @@ Send JSON: `{"sent": true, "account": "...", "message_id": "...",
 Body flags: `--body` / `--body-file` (plain text), `--html` / `--html-file`
 (HTML). At least one body and one recipient are required.
 
+**HTML email font convention**: set the font inline on `<body>` (or a wrapper
+`<div>`) with `font-size: 13px` and a cross-platform sans-serif CJK stack so
+Chinese renders consistently on Windows/macOS/Linux. Use this stack:
+
+```html
+<body style="font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC',
+  'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC',
+  'WenQuanYi Micro Hei', sans-serif; font-size: 13px; line-height: 1.6;">
+```
+
+(PingFang SC = macOS, Microsoft YaHei = Windows, Source Han Sans / Noto /
+WenQuanYi = Linux, Helvetica/Arial = Latin, `sans-serif` = final fallback. A
+classic alternative is `Tahoma, Arial, STHeitiSC-Light, SimSun`.) Always set
+`<meta charset="utf-8">` so Chinese isn't garbled.
+
 ### Replying
 
 ```bash
