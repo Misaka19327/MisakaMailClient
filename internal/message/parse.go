@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,6 +13,20 @@ import (
 	"github.com/emersion/go-message"
 	"github.com/emersion/go-message/mail"
 )
+
+// wordDecoder decodes RFC 2047 encoded-word headers (e.g. =?UTF-8?B?...?=).
+var wordDecoder = &mime.WordDecoder{CharsetReader: message.CharsetReader}
+
+func decodeWords(s string) string {
+	if s == "" {
+		return s
+	}
+	out, err := wordDecoder.DecodeHeader(s)
+	if err != nil {
+		return s
+	}
+	return out
+}
 
 // ParsedAttachment is metadata for a decoded attachment.
 type ParsedAttachment struct {
@@ -78,7 +93,7 @@ func Parse(raw []byte) (*ParsedMessage, error) {
 	}
 	if from, err := h.AddressList("From"); err == nil && len(from) > 0 {
 		pm.From = from[0].Address
-		pm.FromName = from[0].Name
+		pm.FromName = decodeWords(from[0].Name)
 	}
 	if to, err := h.AddressList("To"); err == nil {
 		pm.To = addrStrings(to)
