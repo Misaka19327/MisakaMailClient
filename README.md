@@ -28,12 +28,15 @@ GitHub repository in at build time:
 go install -ldflags "-X MisakaMailClient/internal/updater.defaultOwner=OWNER -X MisakaMailClient/internal/updater.defaultRepo=REPO" ./cmd/misaka-mail
 ```
 
-The binary is placed at `%USERPROFILE%\go\bin\misaka-mail.exe`. Add it to PATH
-(if not already):
+The binary is placed at `%USERPROFILE%\go\bin\misaka-mail.exe`. Add it to the
+user PATH automatically (Windows: updates `HKCU\Environment\Path` and broadcasts
+the change; Unix: appends to `~/.bashrc`, `~/.zshrc`, `~/.profile`):
 
 ```powershell
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\go\bin", "User")
+misaka-mail install
 ```
+
+(Or manually: `[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\go\bin", "User")`.)
 
 Then open a new terminal and verify:
 
@@ -163,6 +166,7 @@ internal/
   message/              MIME build + parse (go-message)
   output/               JSON / text rendering
   updater/              GitHub-Releases self-update (go-selfupdate)
+  syspath/              add the binary dir to the user PATH (Windows registry / Unix rc)
 .claude/skills/misaka-mail/SKILL.md   assistant skill
 ```
 

@@ -19,8 +19,8 @@ mail accounts. Prefer it over writing ad-hoc IMAP/SMTP scripts.
 ## Prerequisites
 
 - The binary is installed at `C:\Users\Misaka19327\go\bin\misaka-mail.exe`.
-  If `misaka-mail` is not on PATH, call it by full path or add
-  `%USERPROFILE%\go\bin` to PATH.
+  If `misaka-mail` is not on PATH, run `misaka-mail install` to add its
+  directory to the user PATH automatically (or call it by full path).
 - At least one account must be configured via `misaka-mail login` first.
 - Login uses an **authorization code / client-specific password**, NOT the
   account's main web-login password:
@@ -38,6 +38,17 @@ mail accounts. Prefer it over writing ad-hoc IMAP/SMTP scripts.
   `--account <email>`.
 
 ## Commands
+
+### Install
+
+```bash
+# Add the executable's directory to the user PATH (Windows: HKCU\Environment;
+# Unix: ~/.bashrc, ~/.zshrc, ~/.profile). Idempotent.
+misaka-mail install --json
+misaka-mail install --dir /custom/path   # add a specific directory
+```
+Run once after `go install` or after placing a release binary, then open a new
+terminal. JSON: `{"directory": "...", "added": bool}`.
 
 ### Account management
 
