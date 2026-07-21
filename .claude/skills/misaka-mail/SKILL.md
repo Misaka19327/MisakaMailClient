@@ -10,6 +10,30 @@ multiple accounts, inbox reading, sending/replying (with attachments and HTML),
 and JSON output. Credentials are stored in the OS credential store
 (Windows Credential Manager), never as plaintext on disk.
 
+## Installation
+
+Pick one, then run `misaka-mail install` to add it to PATH:
+
+- **From a release (no Go needed)**: download
+  `misaka-mail_windows_amd64.tar.gz` (or the matching archive) from
+  https://github.com/Misaka19327/MisakaMailClient/releases, extract
+  `misaka-mail`/`misaka-mail.exe`, then run `misaka-mail install` from that
+  directory.
+- **From source (Go 1.26+)**:
+  ```bash
+  git clone https://github.com/Misaka19327/MisakaMailClient
+  cd MisakaMailClient
+  go env -w GOPROXY=https://goproxy.cn,direct   # China: default proxy is blocked
+  go install ./cmd/misaka-mail
+  misaka-mail install                            # add the binary dir to PATH
+  ```
+
+`misaka-mail install` adds the binary's directory to the user PATH (Windows:
+writes `HKCU\Environment\Path` and broadcasts `WM_SETTINGCHANGE`; Unix: appends
+an `export PATH=...` to `~/.bashrc`, `~/.zshrc`, `~/.profile`). Open a new
+terminal afterwards. Upgrade with `misaka-mail update` (checks GitHub releases,
+verifies SHA256 against `checksums.txt`, atomically replaces the binary).
+
 ## When to use
 
 Use this skill whenever the user wants to work with email from the command line:
