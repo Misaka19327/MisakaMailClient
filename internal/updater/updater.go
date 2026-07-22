@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/creativeprojects/go-selfupdate"
@@ -92,13 +93,38 @@ func CheckLatest(ctx context.Context, owner, repo, current string, verify bool) 
 	return rel, isNewer(rel, current), true, nil
 }
 
-// CheckVersion returns the release for a specific version.
+// CheckVersion returns the release for a specific version. go-selfupdate
+// matches the version against the release tag name with exact string equality,
+// so both "0.5.0" and "v0.5.0" are accepted: if the input does not match, the
+// other "v"-prefix variant is tried.
 func CheckVersion(ctx context.Context, owner, repo, version string, verify bool) (rel *selfupdate.Release, found bool, err error) {
 	up, err := newUpdater(verify)
 	if err != nil {
 		return nil, false, err
 	}
-	return up.DetectVersion(ctx, selfupdate.NewRepositorySlug(owner, repo), version)
+	repoSlug := selfupdate.NewRepositorySlug(owner, repo)
+	rel, found, err = up.DetectVersion(ctx, repoSlug, version)
+	if err != nil || found {
+		return rel, found, err
+	}
+	if alt := toggleVPrefix(version); alt != "" && alt != version {
+		return up.DetectVersion(ctx, repoSlug, alt)
+	}
+	return rel, found, err
+}
+
+// toggleVPrefix returns version with a leading "v" added if absent, or removed
+// if present, so a version can be matched against either tag convention. It
+// returns the empty string for empty input.
+func toggleVPrefix(version string) string {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return ""
+	}
+	if strings.HasPrefix(version, "v") || strings.HasPrefix(version, "V") {
+		return version[1:]
+	}
+	return "v" + version
 }
 
 // Apply downloads rel and atomically replaces the running binary with it.
