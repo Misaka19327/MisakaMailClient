@@ -19,6 +19,7 @@ var (
 	replyHTML     string
 	replyHTMLFile string
 	replyAttach   []string
+	replyFolder   string
 )
 
 var replyCmd = &cobra.Command{
@@ -46,7 +47,11 @@ var replyCmd = &cobra.Command{
 			return err
 		}
 		defer conn.Close()
-		raw, err := conn.FetchRaw(seq)
+		folder, err := conn.ResolveFolder(replyFolder)
+		if err != nil {
+			return err
+		}
+		raw, err := conn.FetchRaw(folder, seq)
 		if err != nil {
 			return err
 		}
@@ -132,4 +137,5 @@ func init() {
 	replyCmd.Flags().StringVar(&replyHTML, "html", "", "HTML body")
 	replyCmd.Flags().StringVar(&replyHTMLFile, "html-file", "", "read HTML body from file")
 	replyCmd.Flags().StringSliceVar(&replyAttach, "attach", nil, "attachment file path (repeatable)")
+	replyCmd.Flags().StringVar(&replyFolder, "folder", "", "mailbox the message lives in (default INBOX; \"sent\" resolves to the Sent folder, or pass any folder name)")
 }

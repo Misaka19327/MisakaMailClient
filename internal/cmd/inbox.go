@@ -12,6 +12,7 @@ import (
 var (
 	inboxLimit  int
 	inboxUnread bool
+	inboxFolder string
 )
 
 var inboxCmd = &cobra.Command{
@@ -31,21 +32,26 @@ var inboxCmd = &cobra.Command{
 			return err
 		}
 		defer conn.Close()
-		envs, err := conn.Inbox(inboxLimit, inboxUnread)
+		folder, err := conn.ResolveFolder(inboxFolder)
+		if err != nil {
+			return err
+		}
+		envs, err := conn.List(folder, inboxLimit, inboxUnread)
 		if err != nil {
 			return err
 		}
 		if jsonMode {
 			return output.PrintJSON(map[string]interface{}{
 				"account":  acc.Email,
+				"folder":   folder,
 				"messages": envs,
 			})
 		}
 		if len(envs) == 0 {
-			fmt.Println("Inbox is empty.")
+			fmt.Printf("%s is empty.\n", folderLabel(folder, inboxFolder))
 			return nil
 		}
-		fmt.Printf("Inbox for %s (%d messages):\n\n", acc.Email, len(envs))
+		fmt.Printf("%s for %s (%d messages):\n\n", folderLabel(folder, inboxFolder), acc.Email, len(envs))
 		for _, e := range envs {
 			mark := " "
 			if !e.Seen {
@@ -61,7 +67,11 @@ var inboxCmd = &cobra.Command{
 			}
 			fmt.Printf("%s %4d  %-25s  %-24s  %s\n", mark, e.Seq, output.Truncate(from, 25), output.Truncate(e.Date, 24), subj)
 		}
-		fmt.Println("\n(U = unread, [+] = has attachments)  Read with: misaka-mail read <seq>")
+		hint := "Read with: misaka-mail read <seq>"
+		if folder != "INBOX" {
+			hint += " --folder " + inboxFolder
+		}
+		fmt.Println("\n(U = unread, [+] = has attachments)  " + hint)
 		return nil
 	},
 }
@@ -70,4 +80,18 @@ func init() {
 	rootCmd.AddCommand(inboxCmd)
 	inboxCmd.Flags().IntVar(&inboxLimit, "limit", 20, "maximum number of messages to list (0 = all)")
 	inboxCmd.Flags().BoolVar(&inboxUnread, "unread", false, "only show unread messages")
+	inboxCmd.Flags().StringVar(&inboxFolder, "folder", "", "mailbox to list (default INBOX; \"sent\" resolves to the Sent folder, or pass any folder name)")
+}
+
+// folderLabel returns a human-readable label for the resolved folder. INBOX
+// becomes "Inbox"; any other folder uses the user-supplied input (e.g. "sent"
+// or "已发送") since the resolved raw name may be UTF-7 encoded.
+func folderLabel(folder, input string) string {
+	if folder == "INBOX" {
+		return "Inbox"
+	}
+	if input != "" {
+		return input
+	}
+	return folder
 }

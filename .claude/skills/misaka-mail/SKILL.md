@@ -102,14 +102,25 @@ misaka-mail inbox --unread          # only unread
 # Read a message; --save-attachments writes attachments to a directory.
 misaka-mail read 5 --json
 misaka-mail read 5 --save-attachments ./downloads
+
+# Any folder, not just INBOX. "sent" auto-resolves to the real Sent folder
+# (locale-specific name, e.g. 已发送); display names and raw names also work.
+misaka-mail inbox --folder sent --limit 20 --json
+misaka-mail read 5 --folder sent --json
+misaka-mail reply 5 --folder sent --body "..."
 ```
 
-Inbox JSON: `{"account": "...", "messages": [{seq, uid, subject, from,
-from_name, date, seen, has_attachments}, ...]}`.
+`--folder` (default `INBOX`) is supported on `inbox`, `read`, and `reply`.
+Sequence numbers are per-folder: read/reply with the same `--folder` you
+listed with, immediately after listing.
 
-Read JSON: `{"account": "...", "message": {message_id, subject, from, from_name,
-to, cc, date, text_body, html_body, attachments: [{filename, mime_type, size}]},
-"saved_attachments": [...]}` (saved_attachments only with --save-attachments).
+Inbox JSON: `{"account": "...", "folder": "...", "messages": [{seq, uid,
+subject, from, from_name, date, seen, has_attachments}, ...]}`.
+
+Read JSON: `{"account": "...", "folder": "...", "message": {message_id,
+subject, from, from_name, to, cc, date, text_body, html_body, attachments:
+[{filename, mime_type, size}]}, "saved_attachments": [...]}` (saved_attachments
+only with --save-attachments).
 
 ### Sending mail
 
@@ -232,7 +243,8 @@ cached. JSON includes `source` (`cache`|`refresh`|`merge`|`server`), `count`,
 ## Notes / gotchas
 
 - Sequence numbers (`seq`) come from `inbox` and are valid for the current
-  mailbox state; read/reply immediately after listing.
+  mailbox state; read/reply immediately after listing. `seq` is scoped to the
+  folder you listed (`--folder`), so pass the same `--folder` to `read`/`reply`.
 - `read` uses BODY.PEEK — it does NOT mark messages as seen.
 - SMTP is always encrypted: implicit TLS on port 465, or STARTTLS otherwise.
   The CLI refuses to send credentials over an unencrypted connection.

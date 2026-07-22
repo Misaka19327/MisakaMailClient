@@ -62,12 +62,14 @@ type Envelope struct {
 	HasAttachments bool   `json:"has_attachments"`
 }
 
-// Inbox lists the most recent messages in INBOX, newest first. limit<=0 means
+// List lists the most recent messages in folder, newest first. limit<=0 means
 // all messages. If unreadOnly is true, only unseen messages are returned.
-func (c *Conn) Inbox(limit int, unreadOnly bool) ([]Envelope, error) {
-	mbox, err := c.c.Select("INBOX", true)
+// folder is the raw mailbox name to SELECT (use ResolveFolder to map a
+// user-supplied name such as "sent" to the raw name).
+func (c *Conn) List(folder string, limit int, unreadOnly bool) ([]Envelope, error) {
+	mbox, err := c.c.Select(folder, true)
 	if err != nil {
-		return nil, fmt.Errorf("select INBOX: %w", err)
+		return nil, fmt.Errorf("select %s: %w", folder, err)
 	}
 	if mbox.Messages == 0 {
 		return nil, nil
@@ -163,10 +165,10 @@ func detectAttachments(bs *imap.BodyStructure) bool {
 }
 
 // FetchRaw returns the full RFC 822 bytes of the message with the given
-// sequence number, without marking it as seen.
-func (c *Conn) FetchRaw(seq uint32) ([]byte, error) {
-	if _, err := c.c.Select("INBOX", true); err != nil {
-		return nil, fmt.Errorf("select INBOX: %w", err)
+// sequence number in folder, without marking it as seen.
+func (c *Conn) FetchRaw(folder string, seq uint32) ([]byte, error) {
+	if _, err := c.c.Select(folder, true); err != nil {
+		return nil, fmt.Errorf("select %s: %w", folder, err)
 	}
 	if seq == 0 {
 		return nil, fmt.Errorf("invalid sequence number 0")
@@ -202,11 +204,11 @@ func (c *Conn) FetchRaw(seq uint32) ([]byte, error) {
 	return raw, nil
 }
 
-// FetchEnvelope returns envelope-level metadata for a single message, used to
-// build reply headers without downloading the whole body.
-func (c *Conn) FetchEnvelope(seq uint32) (*imap.Envelope, error) {
-	if _, err := c.c.Select("INBOX", true); err != nil {
-		return nil, fmt.Errorf("select INBOX: %w", err)
+// FetchEnvelope returns envelope-level metadata for a single message in
+// folder, used to build reply headers without downloading the whole body.
+func (c *Conn) FetchEnvelope(folder string, seq uint32) (*imap.Envelope, error) {
+	if _, err := c.c.Select(folder, true); err != nil {
+		return nil, fmt.Errorf("select %s: %w", folder, err)
 	}
 	seqset := new(imap.SeqSet)
 	seqset.AddNum(seq)

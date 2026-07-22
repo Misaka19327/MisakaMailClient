@@ -12,6 +12,7 @@ import (
 )
 
 var readSaveAttachments string
+var readFolder string
 
 var readCmd = &cobra.Command{
 	Use:   "read <seq>",
@@ -35,7 +36,11 @@ var readCmd = &cobra.Command{
 			return err
 		}
 		defer conn.Close()
-		raw, err := conn.FetchRaw(seq)
+		folder, err := conn.ResolveFolder(readFolder)
+		if err != nil {
+			return err
+		}
+		raw, err := conn.FetchRaw(folder, seq)
 		if err != nil {
 			return err
 		}
@@ -51,7 +56,7 @@ var readCmd = &cobra.Command{
 			}
 		}
 		if jsonMode {
-			result := map[string]interface{}{"account": acc.Email, "message": pm}
+			result := map[string]interface{}{"account": acc.Email, "folder": folder, "message": pm}
 			if saved != nil {
 				result["saved_attachments"] = saved
 			}
@@ -101,4 +106,5 @@ func printMessageText(pm *message.ParsedMessage) {
 func init() {
 	rootCmd.AddCommand(readCmd)
 	readCmd.Flags().StringVar(&readSaveAttachments, "save-attachments", "", "directory to save attachments into")
+	readCmd.Flags().StringVar(&readFolder, "folder", "", "mailbox to read from (default INBOX; \"sent\" resolves to the Sent folder, or pass any folder name)")
 }

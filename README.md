@@ -79,7 +79,16 @@ misaka-mail inbox --limit 20            # list inbox, newest first
 misaka-mail inbox --unread --json       # only unread, JSON output
 misaka-mail read 5 --json               # read message <seq>
 misaka-mail read 5 --save-attachments ./downloads
+
+misaka-mail inbox --folder sent --limit 20   # list the Sent folder
+misaka-mail read 5 --folder sent --json      # read a sent message
 ```
+
+`--folder` works on `inbox`, `read`, and `reply` (default `INBOX`). The
+alias `sent` resolves to the real Sent folder (its name is locale-specific,
+e.g. 已发送); you can also pass any folder by display name (`已发送`) or raw
+name. Sequence numbers are per-folder, so read with the same `--folder` you
+listed with.
 
 ### Sending mail
 

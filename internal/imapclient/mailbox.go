@@ -1,6 +1,7 @@
 package imapclient
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -87,6 +88,57 @@ func FindContacts(mboxes []Mailbox) Mailbox {
 		}
 	}
 	return Mailbox{}
+}
+
+// ResolveFolderName maps a user-supplied folder name to a raw mailbox name
+// suitable for SELECT, using the listed mailboxes. It understands the aliases
+// "inbox" (-> "INBOX") and "sent"/"contacts" (resolved via FindSent /
+// FindContacts). Any other name is matched case-insensitively against the
+// mailboxes' decoded display names, then their raw names, so a user can pass
+// "已发送" or "Drafts" directly. Unknown names are returned as-is so the server
+// can reject them with a clear error.
+func ResolveFolderName(mboxes []Mailbox, name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" || strings.EqualFold(name, "inbox") {
+		return "INBOX"
+	}
+	if strings.EqualFold(name, "sent") {
+		if sf := FindSent(mboxes); sf.Name != "" {
+			return sf.Name
+		}
+		return "Sent"
+	}
+	if strings.EqualFold(name, "contacts") {
+		if cf := FindContacts(mboxes); cf.Name != "" {
+			return cf.Name
+		}
+	}
+	for _, m := range mboxes {
+		if strings.EqualFold(m.Display, name) {
+			return m.Name
+		}
+	}
+	for _, m := range mboxes {
+		if strings.EqualFold(m.Name, name) {
+			return m.Name
+		}
+	}
+	return name
+}
+
+// ResolveFolder resolves a user-supplied folder name to a raw mailbox name.
+// The INBOX default short-circuits without a LIST round-trip; any other name
+// lists the mailboxes once and resolves via ResolveFolderName.
+func (c *Conn) ResolveFolder(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || strings.EqualFold(name, "inbox") {
+		return "INBOX", nil
+	}
+	mboxes, err := c.ListMailboxes()
+	if err != nil {
+		return "", fmt.Errorf("list mailboxes: %w", err)
+	}
+	return ResolveFolderName(mboxes, name), nil
 }
 
 // FetchVCards fetches the raw body of up to limit messages in folder (newest
