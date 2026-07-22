@@ -187,8 +187,18 @@ misaka-mail update --repo owner/repo --check
 The GitHub repo is baked in at build time via `-ldflags`; if unset, pass
 `--repo owner/repo`. Downloads are SHA256-verified against the release's
 `checksums.txt` (skip with `--no-verify`). Set `GITHUB_TOKEN` for higher API
-rate limits or private repos. Update JSON: `{"updated": true, "version": "..."}`
-or check `{"current": "...", "latest": "...", "update_available": bool}`.
+rate limits or private repos.
+
+After the binary is updated, the Claude skill (`SKILL.md`) for the same
+release is fetched to `~/.claude/skills/misaka-mail/SKILL.md` so Claude Code
+loads the matching skill. `--no-skill` skips it; `--check` does not fetch. If
+the skill can't be fetched/written, a notice with a manual download URL is
+printed and the binary update is still considered successful.
+
+Update JSON: `{"updated": true, "version": "...", "skill": {"updated": bool,
+"path": "...", "fallback": bool, "version": "<tag>", "error": "..."}}` (the
+`skill` object is omitted with `--no-skill`); check `{"current": "...",
+"latest": "...", "update_available": bool}`.
 
 ## Logging
 

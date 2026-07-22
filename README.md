@@ -176,6 +176,12 @@ renamed first). Downloads are SHA256-verified against the release's
 `checksums.txt`. Set `GITHUB_TOKEN` for higher GitHub API rate limits or to
 update from a private repository.
 
+After the binary is updated, the Claude skill (`SKILL.md`) for the same
+release is fetched and written to `~/.claude/skills/misaka-mail/SKILL.md` so
+Claude Code loads the matching skill globally. Pass `--no-skill` to skip this.
+If the skill cannot be written there (or fetched), a notice is printed with a
+manual download URL - the binary update itself is never blocked.
+
 ### Publishing releases
 
 Releases are built and published automatically by the GitHub Action in
