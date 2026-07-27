@@ -119,3 +119,83 @@ func TestBuildValidation(t *testing.T) {
 		t.Error("expected error for missing recipients")
 	}
 }
+
+// TestBuildFooter verifies the footer notice is appended in the fixed style to
+// both body parts and can be omitted by leaving Footer empty.
+func TestBuildFooter(t *testing.T) {
+	spec := SendSpec{
+		From:     "alice@example.com",
+		To:       []string{"bob@example.com"},
+		Subject:  "footer test",
+		TextBody: "hello",
+		HTMLBody: "<div>hello</div>",
+		Footer:   "sent by bot",
+	}
+	raw, _, err := Build(spec)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	pm, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if want := "hello\n（sent by bot）"; pm.TextBody != want {
+		t.Errorf("TextBody: got %q want %q", pm.TextBody, want)
+	}
+	if want := `<div>hello</div><br><small style="color:#888">sent by bot</small>`; pm.HTMLBody != want {
+		t.Errorf("HTMLBody: got %q want %q", pm.HTMLBody, want)
+	}
+
+	// No footer when Footer is empty.
+	spec.Footer = ""
+	raw, _, err = Build(spec)
+	if err != nil {
+		t.Fatalf("Build (no footer): %v", err)
+	}
+	pm, err = Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse (no footer): %v", err)
+	}
+	if strings.Contains(pm.TextBody, "sent by bot") {
+		t.Errorf("TextBody should not have footer: %q", pm.TextBody)
+	}
+	if strings.Contains(pm.HTMLBody, "<small") {
+		t.Errorf("HTMLBody should not have footer: %q", pm.HTMLBody)
+	}
+}
+
+// TestBuildFooterEscapesHTML verifies the footer text is HTML-escaped so a
+// custom footer cannot inject markup.
+func TestBuildFooterEscapesHTML(t *testing.T) {
+	spec := SendSpec{
+		From:     "alice@example.com",
+		To:       []string{"bob@example.com"},
+		Subject:  "escape test",
+		HTMLBody: "<div>hi</div>",
+		Footer:   "<b>bold</b> & more",
+	}
+	raw, _, err := Build(spec)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	pm, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if !strings.Contains(pm.HTMLBody, "&lt;b&gt;bold&lt;/b&gt; &amp; more") {
+		t.Errorf("HTMLBody footer not escaped: %q", pm.HTMLBody)
+	}
+	if strings.Contains(pm.HTMLBody, "<b>bold</b>") {
+		t.Errorf("HTMLBody footer leaked raw markup: %q", pm.HTMLBody)
+	}
+}
+
+// TestInsertHTMLFooterDocument verifies the footer is inserted before </body>
+// for full-document HTML rather than appended after it.
+func TestInsertHTMLFooterDocument(t *testing.T) {
+	in := "<html><body><p>hi</p></body></html>"
+	out := insertHTMLFooter(in, "notice")
+	if !strings.Contains(out, "</p><br><small style=\"color:#888\">notice</small></body>") {
+		t.Errorf("footer not inserted before </body>: %q", out)
+	}
+}

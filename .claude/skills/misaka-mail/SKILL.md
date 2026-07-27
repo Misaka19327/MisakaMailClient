@@ -157,6 +157,20 @@ WenQuanYi = Linux, Helvetica/Arial = Latin, `sans-serif` = final fallback. A
 classic alternative is `Tahoma, Arial, STHeitiSC-Light, SimSun`.) Always set
 `<meta charset="utf-8">` so Chinese isn't garbled.
 
+**Footer notice**: every outgoing email (`send` and `reply`) ends with a footer
+line, `本邮件由 misaka-mail CLI 辅助发送`, by default. The wrapping style is
+fixed and cannot be changed - a parenthesized line (`（...）`) in the plain-text
+part and a small gray `<small style="color:#888">...</small>` in the HTML part.
+Override the text or disable it per send:
+
+```bash
+misaka-mail send --to a@x.com --subject Hi --body Hello --no-footer        # omit the footer
+misaka-mail send --to a@x.com --subject Hi --body Hello --footer "custom line"  # custom text, same style
+```
+
+`--footer` and `--no-footer` apply to both `send` and `reply`. When neither is
+given, the default footer is appended.
+
 ### Replying
 
 ```bash

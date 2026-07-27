@@ -103,6 +103,11 @@ Body: `--body` / `--body-file` (plain text), `--html` / `--html-file` (HTML).
 Attachments: `--attach <path>` (repeatable). At least one body and one recipient
 are required. Bcc is envelope-only — recipients cannot see each other.
 
+By default every outgoing email ends with a footer line, `本邮件由 misaka-mail
+CLI 辅助发送`, in a fixed style (parenthesized in plain text, small gray text
+in HTML). Override or disable it per send with `--footer "custom line"` or
+`--no-footer` (works on `send` and `reply`).
+
 ### Replying
 
 ```bash

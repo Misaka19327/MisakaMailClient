@@ -4,6 +4,7 @@ package message
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,16 +13,24 @@ import (
 	"github.com/emersion/go-message/mail"
 )
 
+// DefaultFooterText is the notice appended to the end of outgoing mail by
+// default, when no --footer override is given.
+const DefaultFooterText = "本邮件由 misaka-mail CLI 辅助发送"
+
 // SendSpec describes a message to build.
 type SendSpec struct {
-	From        string   // sender email address
-	FromName    string   // sender display name (optional)
-	To          []string // To recipients
-	Cc          []string // Cc recipients
-	Bcc         []string // Bcc recipients (envelope only, never written to headers)
-	Subject     string
-	TextBody    string   // plain-text body (optional)
-	HTMLBody    string   // HTML body (optional)
+	From     string   // sender email address
+	FromName string   // sender display name (optional)
+	To       []string // To recipients
+	Cc       []string // Cc recipients
+	Bcc      []string // Bcc recipients (envelope only, never written to headers)
+	Subject  string
+	TextBody string // plain-text body (optional)
+	HTMLBody string // HTML body (optional)
+	// Footer is a notice appended to the end of the body in a fixed,
+	// non-configurable style: a parenthesized line in the plain-text part and a
+	// small gray <small> in the HTML part. Empty means no footer.
+	Footer      string
 	Attachments []string // attachment file paths
 	// InReplyTo is the Message-ID being replied to, without angle brackets.
 	InReplyTo string
@@ -86,14 +95,26 @@ func Build(spec SendSpec) (raw []byte, messageID string, err error) {
 		return nil, "", fmt.Errorf("create message writer: %w", err)
 	}
 
+	// Apply the footer notice (fixed style) to whichever body parts exist.
+	textBody := spec.TextBody
+	htmlBody := spec.HTMLBody
+	if spec.Footer != "" {
+		if textBody != "" {
+			textBody = textBody + "\n（" + spec.Footer + "）"
+		}
+		if htmlBody != "" {
+			htmlBody = insertHTMLFooter(htmlBody, html.EscapeString(spec.Footer))
+		}
+	}
+
 	// Inline body (text and/or html) as multipart/alternative.
-	if spec.TextBody != "" || spec.HTMLBody != "" {
+	if textBody != "" || htmlBody != "" {
 		iw, err := mw.CreateInline()
 		if err != nil {
 			mw.Close()
 			return nil, "", fmt.Errorf("create inline writer: %w", err)
 		}
-		if spec.TextBody != "" {
+		if textBody != "" {
 			var ih mail.InlineHeader
 			ih.Set("Content-Type", "text/plain; charset=utf-8")
 			pw, err := iw.CreatePart(ih)
@@ -102,10 +123,10 @@ func Build(spec SendSpec) (raw []byte, messageID string, err error) {
 				mw.Close()
 				return nil, "", fmt.Errorf("create text part: %w", err)
 			}
-			_, _ = pw.Write([]byte(spec.TextBody))
+			_, _ = pw.Write([]byte(textBody))
 			pw.Close()
 		}
-		if spec.HTMLBody != "" {
+		if htmlBody != "" {
 			var ih mail.InlineHeader
 			ih.Set("Content-Type", "text/html; charset=utf-8")
 			pw, err := iw.CreatePart(ih)
@@ -114,7 +135,7 @@ func Build(spec SendSpec) (raw []byte, messageID string, err error) {
 				mw.Close()
 				return nil, "", fmt.Errorf("create html part: %w", err)
 			}
-			_, _ = pw.Write([]byte(spec.HTMLBody))
+			_, _ = pw.Write([]byte(htmlBody))
 			pw.Close()
 		}
 		iw.Close()
@@ -150,6 +171,17 @@ func hostOf(email string) string {
 		return email[i+1:]
 	}
 	return "localhost"
+}
+
+// insertHTMLFooter inserts the footer markup before </body> (case-insensitive)
+// when the HTML is a full document, otherwise appends it to the fragment. The
+// footer text must already be HTML-escaped. The wrapping style is fixed.
+func insertHTMLFooter(htmlBody, escapedFooter string) string {
+	footer := "<br><small style=\"color:#888\">" + escapedFooter + "</small>"
+	if idx := strings.LastIndex(strings.ToLower(htmlBody), "</body>"); idx >= 0 {
+		return htmlBody[:idx] + footer + htmlBody[idx:]
+	}
+	return htmlBody + footer
 }
 
 func mimeTypeFor(path string) string {

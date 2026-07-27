@@ -106,6 +106,7 @@ var replyCmd = &cobra.Command{
 			Attachments: replyAttach,
 			InReplyTo:   orig.MessageID,
 			References:  refs,
+			Footer:      resolveFooter(),
 		}
 		rawOut, msgID, err := message.Build(spec)
 		if err != nil {
@@ -138,4 +139,5 @@ func init() {
 	replyCmd.Flags().StringVar(&replyHTMLFile, "html-file", "", "read HTML body from file")
 	replyCmd.Flags().StringSliceVar(&replyAttach, "attach", nil, "attachment file path (repeatable)")
 	replyCmd.Flags().StringVar(&replyFolder, "folder", "", "mailbox the message lives in (default INBOX; \"sent\" resolves to the Sent folder, or pass any folder name)")
+	addFooterFlags(replyCmd)
 }

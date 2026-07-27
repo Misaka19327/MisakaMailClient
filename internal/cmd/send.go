@@ -61,6 +61,7 @@ var sendCmd = &cobra.Command{
 			TextBody:    textBody,
 			HTMLBody:    htmlBody,
 			Attachments: sendAttach,
+			Footer:      resolveFooter(),
 		}
 		raw, msgID, err := message.Build(spec)
 		if err != nil {
@@ -94,4 +95,5 @@ func init() {
 	sendCmd.Flags().StringVar(&sendHTML, "html", "", "HTML body")
 	sendCmd.Flags().StringVar(&sendHTMLFile, "html-file", "", "read HTML body from file")
 	sendCmd.Flags().StringSliceVar(&sendAttach, "attach", nil, "attachment file path (repeatable)")
+	addFooterFlags(sendCmd)
 }
