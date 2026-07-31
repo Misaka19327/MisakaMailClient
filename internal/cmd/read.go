@@ -13,6 +13,7 @@ import (
 
 var readSaveAttachments string
 var readFolder string
+var readHTML bool
 
 var readCmd = &cobra.Command{
 	Use:   "read <seq>",
@@ -62,7 +63,7 @@ var readCmd = &cobra.Command{
 			}
 			return output.PrintJSON(result)
 		}
-		printMessageText(pm)
+		printMessageText(pm, readHTML)
 		if len(saved) > 0 {
 			fmt.Println("\nSaved attachments:")
 			for _, s := range saved {
@@ -73,7 +74,7 @@ var readCmd = &cobra.Command{
 	},
 }
 
-func printMessageText(pm *message.ParsedMessage) {
+func printMessageText(pm *message.ParsedMessage, preferHTML bool) {
 	fmt.Printf("Subject:    %s\n", pm.Subject)
 	if pm.FromName != "" {
 		fmt.Printf("From:       %s <%s>\n", pm.FromName, pm.From)
@@ -89,8 +90,15 @@ func printMessageText(pm *message.ParsedMessage) {
 		fmt.Printf("Message-ID: %s\n", pm.MessageID)
 	}
 	fmt.Println("\n----------")
+	// With --html, prefer the raw HTML body (falling back to text when the
+	// message has no HTML part); otherwise prefer text and fall back to HTML.
 	body := pm.TextBody
-	if body == "" {
+	if preferHTML {
+		body = pm.HTMLBody
+		if body == "" {
+			body = pm.TextBody
+		}
+	} else if body == "" {
 		body = pm.HTMLBody
 	}
 	fmt.Println(body)
@@ -107,4 +115,5 @@ func init() {
 	rootCmd.AddCommand(readCmd)
 	readCmd.Flags().StringVar(&readSaveAttachments, "save-attachments", "", "directory to save attachments into")
 	readCmd.Flags().StringVar(&readFolder, "folder", "", "mailbox to read from (default INBOX; \"sent\" resolves to the Sent folder, or pass any folder name)")
+	readCmd.Flags().BoolVar(&readHTML, "html", false, "print the raw HTML body instead of the plain-text body")
 }

@@ -79,6 +79,7 @@ misaka-mail inbox --limit 20            # list inbox, newest first
 misaka-mail inbox --unread --json       # only unread, JSON output
 misaka-mail read 5 --json               # read message <seq>
 misaka-mail read 5 --save-attachments ./downloads
+misaka-mail read 5 --html               # print the raw HTML body instead of text
 
 misaka-mail inbox --folder sent --limit 20   # list the Sent folder
 misaka-mail read 5 --folder sent --json      # read a sent message
@@ -88,7 +89,8 @@ misaka-mail read 5 --folder sent --json      # read a sent message
 alias `sent` resolves to the real Sent folder (its name is locale-specific,
 e.g. 已发送); you can also pass any folder by display name (`已发送`) or raw
 name. Sequence numbers are per-folder, so read with the same `--folder` you
-listed with.
+listed with. `--html` prints the raw `html_body` to stdout (text mode only);
+`--json` already includes both `text_body` and `html_body`.
 
 ### Sending mail
 
@@ -113,10 +115,17 @@ in HTML). Override or disable it per send with `--footer "custom line"` or
 ```bash
 misaka-mail reply 5 --body "Thanks, got it."
 misaka-mail reply 5 --all --html-file ./reply.html --attach ./signed.pdf
+misaka-mail reply 5 --subject "Custom subject" --body "See below"
+misaka-mail reply 5 --body "quick ack" --no-quote
 ```
 
 Reply sets `In-Reply-To`, `References`, and a `Re:` subject automatically.
-`--all` replies to all recipients.
+`--all` replies to all recipients. `--subject` overrides the subject verbatim
+(no `Re:` is added). By default the original message is quoted below the body
+in the Outlook/Aliyun style (a dashed separator, then `发件人`/`发送时间`/
+`收件人`/`抄　送`/`主　题` headers, then the original body); use `--no-quote`
+to omit it. The quote is added to whichever body parts you supply
+(`--body` and/or `--html`).
 
 ## Logging
 

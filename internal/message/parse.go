@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-message"
 	"github.com/emersion/go-message/mail"
@@ -49,6 +50,12 @@ type ParsedMessage struct {
 	TextBody    string             `json:"text_body"`
 	HTMLBody    string             `json:"html_body,omitempty"`
 	Attachments []ParsedAttachment `json:"attachments,omitempty"`
+
+	// Unexported fields kept for building reply quotes. They are not serialized
+	// in JSON output.
+	date    time.Time
+	toAddrs []*mail.Address
+	ccAddrs []*mail.Address
 }
 
 // SavedAttachment is an attachment written to disk.
@@ -87,6 +94,7 @@ func Parse(raw []byte) (*ParsedMessage, error) {
 		pm.References = ids
 	}
 	if t, err := h.Date(); err == nil && !t.IsZero() {
+		pm.date = t
 		pm.Date = t.Format("2006-01-02 15:04:05 -0700")
 	} else {
 		pm.Date = strings.TrimSpace(h.Get("Date"))
@@ -96,9 +104,17 @@ func Parse(raw []byte) (*ParsedMessage, error) {
 		pm.FromName = decodeWords(from[0].Name)
 	}
 	if to, err := h.AddressList("To"); err == nil {
+		for _, a := range to {
+			a.Name = decodeWords(a.Name)
+		}
+		pm.toAddrs = to
 		pm.To = addrStrings(to)
 	}
 	if cc, err := h.AddressList("Cc"); err == nil {
+		for _, a := range cc {
+			a.Name = decodeWords(a.Name)
+		}
+		pm.ccAddrs = cc
 		pm.Cc = addrStrings(cc)
 	}
 

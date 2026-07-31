@@ -13,13 +13,15 @@ import (
 )
 
 var (
-	replyAll      bool
-	replyBody     string
-	replyBodyFile string
-	replyHTML     string
-	replyHTMLFile string
-	replyAttach   []string
-	replyFolder   string
+	replyAll       bool
+	replyBody      string
+	replyBodyFile  string
+	replyHTML      string
+	replyHTMLFile  string
+	replyAttach    []string
+	replyFolder    string
+	replySubject   string
+	replyQuoteSkip bool
 )
 
 var replyCmd = &cobra.Command{
@@ -27,8 +29,10 @@ var replyCmd = &cobra.Command{
 	Short: "Reply to a message (sets In-Reply-To and References)",
 	Args:  cobra.ExactArgs(1),
 	Long: "Reply to the message with the given sequence number. Threading headers\n" +
-		"(In-Reply-To, References) and a 'Re:' subject are set automatically. Use\n" +
-		"--all to reply to all recipients.",
+		"(In-Reply-To, References) and a 'Re:' subject are set automatically; use\n" +
+		"--subject to override the subject verbatim. The original message is quoted\n" +
+		"below the body by default; use --no-quote to omit it. Use --all to reply\n" +
+		"to all recipients.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		seq, err := parseSeq(args[0])
 		if err != nil {
@@ -71,9 +75,11 @@ var replyCmd = &cobra.Command{
 			to = []string{orig.From}
 		}
 
-		// Subject.
+		// Subject: --subject overrides verbatim; otherwise auto-prefix "Re:".
 		subject := orig.Subject
-		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(subject)), "re:") {
+		if replySubject != "" {
+			subject = replySubject
+		} else if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(subject)), "re:") {
 			subject = "Re: " + subject
 		}
 
@@ -93,6 +99,11 @@ var replyCmd = &cobra.Command{
 		}
 		if textBody == "" && htmlBody == "" {
 			return fmt.Errorf("a body is required: use --body or --html (or --body-file/--html-file)")
+		}
+
+		// Quote the original below the body unless --no-quote is given.
+		if !replyQuoteSkip {
+			textBody, htmlBody = message.AppendQuote(textBody, htmlBody, orig)
 		}
 
 		spec := message.SendSpec{
@@ -139,5 +150,7 @@ func init() {
 	replyCmd.Flags().StringVar(&replyHTMLFile, "html-file", "", "read HTML body from file")
 	replyCmd.Flags().StringSliceVar(&replyAttach, "attach", nil, "attachment file path (repeatable)")
 	replyCmd.Flags().StringVar(&replyFolder, "folder", "", "mailbox the message lives in (default INBOX; \"sent\" resolves to the Sent folder, or pass any folder name)")
+	replyCmd.Flags().StringVar(&replySubject, "subject", "", "override the reply subject (used verbatim, no Re: prefix is added)")
+	replyCmd.Flags().BoolVar(&replyQuoteSkip, "no-quote", false, "do not append the quoted original message below the body")
 	addFooterFlags(replyCmd)
 }

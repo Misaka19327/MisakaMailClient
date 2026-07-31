@@ -102,6 +102,8 @@ misaka-mail inbox --unread          # only unread
 # Read a message; --save-attachments writes attachments to a directory.
 misaka-mail read 5 --json
 misaka-mail read 5 --save-attachments ./downloads
+# Print the raw HTML body to stdout (text mode). --json already has html_body.
+misaka-mail read 5 --html
 
 # Any folder, not just INBOX. "sent" auto-resolves to the real Sent folder
 # (locale-specific name, e.g. 已发送); display names and raw names also work.
@@ -177,7 +179,17 @@ given, the default footer is appended.
 # Reply to message <seq>; sets In-Reply-To, References, and "Re:" subject.
 misaka-mail reply 5 --body "Thanks, got it."
 misaka-mail reply 5 --all --html-file ./reply.html --attach ./signed.pdf
+# Override the subject verbatim (no Re: prefix is added).
+misaka-mail reply 5 --subject "Custom subject" --body "See below"
+# Skip quoting the original below the body.
+misaka-mail reply 5 --body "quick ack" --no-quote
 ```
+
+By default the original message is quoted below the reply body in the
+Outlook/Aliyun style: a dashed separator, then `发件人`/`发送时间`/`收件人`/
+`抄　送`/`主　题` header lines, then the original body. The quote is appended
+to whichever body parts you supply (`--body` and/or `--html`); pass `--no-quote`
+to omit it. `--subject` overrides the subject verbatim.
 
 Reply JSON: `{"sent": true, "account": "...", "message_id": "...",
 "in_reply_to": "...", "recipients": [...]}`.
